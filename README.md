@@ -3,6 +3,8 @@
 用 Python 评测 Jev 在中文音乐搜索、导航搜索中的 Choice、Noul、Score 能力。
 **音乐/导航搜索不联网，使用固定 mock 数据；模型推理真实调用 Jev。**
 
+面向汇报的简版说明：[Jev 能力与评测说明](docs/jev-overview.md)。
+
 ## 快速开始
 
 需要 Python 3.11+ 和 uv。默认使用清华 PyPI 镜像，依赖已锁定。
