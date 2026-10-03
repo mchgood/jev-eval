@@ -1,0 +1,32 @@
+[project]
+name = "jev-eval"
+version = "0.1.0"
+description = "Chinese music and navigation evaluation for Jev"
+requires-python = ">=3.11"
+dependencies = [
+    "typesafe-sdk",
+    "pydantic>=2",
+    "scikit-learn>=1.5",
+    "socksio>=1.0.0",
+]
+
+[project.scripts]
+jev-eval = "jev_eval.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.9"]
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
