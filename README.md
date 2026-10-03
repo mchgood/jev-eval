@@ -65,3 +65,15 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 - [重排案例](https://docs.typesafe.ai/cookbooks/rerank_typesafe)
 - [Function Calling](https://docs.typesafe.ai/cookbooks/function_calling)
 - [模型已知弱点](https://docs.typesafe.ai/model-jaggedness/jev-1.13)
+
+## GitHub Actions 真实评测
+
+1. 在仓库 **Settings → Secrets and variables → Actions → New repository secret** 中设置
+   `TYPESAFE_API_KEY`，值为 Jev API Key。不要使用普通变量或工作流输入存放密钥。
+2. 进入 **Actions → Jev evaluation → Run workflow**，选择 `main`。
+3. 选择模型、领域、能力和 Noul 阈值；默认运行 17 条 smoke 样本，覆盖两领域三种能力。
+4. 运行结束后在 Summary 查看成功/失败计数，在 Artifacts 下载 JSON、HTML 和原始响应。
+
+工作流仅手动触发，不在普通 push 或 PR 中调用收费模型。缺少 Secret 时明确失败。
+模型参数经环境变量和带引号的参数传递，API Key 仅注入推理步骤。失败时仍上传已有结果，
+报告保留 14 天。已有 Offline checks 工作流继续执行不需要 Key 的 CI。

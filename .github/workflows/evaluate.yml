@@ -1,0 +1,93 @@
+name: Jev evaluation
+run-name: Jev ${{ inputs.domain }} / ${{ inputs.primitive }} (${{ inputs.model }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Jev model version available to your account
+        type: string
+        default: jev-1.13
+        required: true
+      domain:
+        description: Evaluation domain
+        type: choice
+        options: [all, music, navigation]
+        default: all
+      primitive:
+        description: Jev primitive
+        type: choice
+        options: [all, choice, noul, score]
+        default: all
+      threshold:
+        description: Noul decision threshold (0 to 1)
+        type: string
+        default: '0.5'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jev-evaluation
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install locked dependencies
+        run: uv sync --locked --python 3.12
+      - name: Validate mock dataset
+        run: uv run jev-eval validate --data data/smoke.jsonl
+      - name: Run real Jev evaluation
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          EVAL_MODEL: ${{ inputs.model }}
+          EVAL_DOMAIN: ${{ inputs.domain }}
+          EVAL_PRIMITIVE: ${{ inputs.primitive }}
+          EVAL_THRESHOLD: ${{ inputs.threshold }}
+        shell: bash
+        run: |
+          if [[ -z "$TYPESAFE_API_KEY" ]]; then
+            echo '::error::Add repository secret TYPESAFE_API_KEY before running evaluation.'
+            exit 1
+          fi
+          args=(--data data/smoke.jsonl --out results/evaluation --model "$EVAL_MODEL" --threshold "$EVAL_THRESHOLD" --timeout 30)
+          if [[ "$EVAL_DOMAIN" != all ]]; then args+=(--domain "$EVAL_DOMAIN"); fi
+          if [[ "$EVAL_PRIMITIVE" != all ]]; then args+=(--primitive "$EVAL_PRIMITIVE"); fi
+          uv run jev-eval run "${args[@]}"
+      - name: Write Actions summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          summary = Path('results/evaluation/summary.json')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
+              output.write('## Jev evaluation\n\nSearch data: mock. Inference: real Jev.\n\n')
+              output.write('The smoke dataset checks the pipeline; it is not a production benchmark.\n\n')
+              if not summary.exists():
+                  output.write('No complete summary was generated. Check the evaluation step logs.\n')
+              else:
+                  data = json.loads(summary.read_text(encoding='utf-8'))
+                  output.write('| Domain | Task | Primitive | Total | Success | Failed |\n')
+                  output.write('|---|---|---|---:|---:|---:|\n')
+                  for group in data['groups']:
+                      values = [str(group[k]) for k in ('domain', 'task', 'primitive', 'total', 'success', 'failed')]
+                      output.write('| ' + ' | '.join(values) + ' |\n')
+                  output.write('\nDownload the artifact for metrics, raw responses and the HTML report.\n')
+          PY
+      - name: Upload evaluation report and raw responses
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jev-evaluation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: results/evaluation/
+          if-no-files-found: warn
+          retention-days: 14
