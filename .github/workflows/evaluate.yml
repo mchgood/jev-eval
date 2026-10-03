@@ -12,7 +12,7 @@ on:
       model:
         description: Jev model version available to your account
         type: string
-        default: jev-1.13
+        default: jev-1.13.0
         required: true
       domain:
         description: Evaluation domain

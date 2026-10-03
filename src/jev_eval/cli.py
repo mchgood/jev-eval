@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
-from .backend import JevBackend, request_for
+from .backend import JevBackend, error_details, request_for
 from .metrics import answer_from, summarize
 from .schema import load_cases
 
@@ -39,7 +39,7 @@ def main():
         s.add_argument("--split", choices=["dev", "calibration", "test"])
         s.add_argument("--out", type=Path)
         if command == "run":
-            s.add_argument("--model", default=os.getenv("JEV_MODEL", "jev-1.13"))
+            s.add_argument("--model", default=os.getenv("JEV_MODEL", "jev-1.13.0"))
             s.add_argument("--timeout", type=float, default=30)
             s.add_argument("--threshold", type=float, default=0.5)
     s = sub.add_parser("report")
@@ -108,12 +108,21 @@ def main():
                     answer_from(row["raw"], case.question["type"])
                     row["status"] = "ok"
                 except Exception as exc:  # noqa: BLE001 - preserve per-case failures
-                    row.update(status="error", error_type=type(exc).__name__)
+                    row.update(status="error", **error_details(exc))
                 row["latency_ms"] = (perf_counter() - start) * 1000
                 f.write(json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n")
                 f.flush()
                 rows.append(row)
-                print(f"{case.id}: {row['status']}")
+                print(
+                    f"{case.id}: {row['status']}"
+                    + (
+                        f" ({row['error_type']}, HTTP {row.get('http_status', 'n/a')}): "
+                        f"{row.get('error_message', '')}"
+                        if row["status"] == "error"
+                        else ""
+                    ),
+                    flush=True,
+                )
     finally:
         backend.close()
     write_reports(out, summarize(rows, a.threshold))

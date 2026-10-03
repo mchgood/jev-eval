@@ -71,14 +71,14 @@ def test_sdk_adapter_uses_real_sdk_response(monkeypatch):
                     "probabilities": {0: 0, 1: 0, 2: 0.3, 3: 0.7},
                 }
             return SystemOneResponse.model_validate(
-                {"model": "jev-1.13", "usage": {}, "answers": {"decision": answer}}
+                {"model": "jev-1.13.0", "usage": {}, "answers": {"decision": answer}}
             )
 
         def close(self):
             pass
 
     monkeypatch.setattr(module, "TypeSafeClient", Client)
-    backend = JevBackend("jev-1.13", 30)
+    backend = JevBackend("jev-1.13.0", 30)
     cases = load_cases(DATA)
     for kind in ("choice", "noul", "score"):
         case = next(c for c in cases if c.question["type"] == kind)
@@ -146,3 +146,28 @@ def test_run_requires_key(monkeypatch):
     with pytest.raises(SystemExit) as error:
         main()
     assert error.value.code == 2
+
+
+def test_service_error_details_redact_credentials(monkeypatch):
+    from jev_eval.backend import error_details
+
+    key = "custom-secret-value"
+    monkeypatch.setenv("TYPESAFE_API_KEY", key)
+
+    class ServiceError(Exception):
+        def __init__(self):
+            self.status = 400
+            self.body = {
+                "detail": {
+                    "message": "Unknown model; custom-secret-value apikey_abc_def Bearer xyz"
+                }
+            }
+            self.headers = {"authorization": "should-never-be-written"}
+
+    details = error_details(ServiceError())
+    assert details["http_status"] == 400
+    assert "Unknown model" in details["error_message"]
+    assert key not in details["error_message"]
+    assert "apikey_abc_def" not in details["error_message"]
+    assert "xyz" not in details["error_message"]
+    assert "headers" not in details

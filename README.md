@@ -20,7 +20,7 @@ uv run pytest
 
 ```bash
 export TYPESAFE_API_KEY='你的 Key'
-uv run jev-eval run --model jev-1.13 --out results/run-001
+uv run jev-eval run --model jev-1.13.0 --out results/run-001
 # 单独运行某个领域、能力或数据划分
 uv run jev-eval run --domain music --primitive score --split dev
 # 不再次请求模型，调整 Noul 阈值重算指标
@@ -93,3 +93,8 @@ uv run jev-eval run --data data/expanded --domain navigation --primitive score
 每个领域 25 个四候选排序组，包含 5 个全无关组。合成数据来源、标注规则和未知标签
 详见 [数据集说明](data/expanded/README.md)。当前全部为 dev，不作为独立冻结测试集。
 GitHub Actions 默认使用 expanded，可切换 smoke；运行超时上限为 60 分钟。
+
+
+默认固定模型版本为 `jev-1.13.0`。`jev-1.13` 是文档中的系列简称，API 不接受这个 ID。
+如果旧的手动运行参数仍为 `jev-1.13`，请在 Run workflow 中改成 `jev-1.13.0`。
+服务错误记录 HTTP 状态和脱敏消息，方便区分模型名错误、认证失败及限流。
