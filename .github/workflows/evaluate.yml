@@ -78,23 +78,15 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
-          import json
           import os
           from pathlib import Path
-          summary = Path('results/evaluation/summary.json')
+          report = Path('results/evaluation/report.md')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
-              output.write('## Jev evaluation\n\nSearch data: mock. Inference: real Jev.\n\n')
-              output.write('Synthetic development scenarios are not independent real-user samples or a production benchmark.\n\n')
-              if not summary.exists():
-                  output.write('No complete summary was generated. Check the evaluation step logs.\n')
+              if report.exists():
+                  output.write(report.read_text(encoding='utf-8'))
+                  output.write('\n完整 HTML、JSON 和原始响应请下载 Artifacts。\n')
               else:
-                  data = json.loads(summary.read_text(encoding='utf-8'))
-                  output.write('| Domain | Task | Primitive | Total | Success | Failed |\n')
-                  output.write('|---|---|---|---:|---:|---:|\n')
-                  for group in data['groups']:
-                      values = [str(group[k]) for k in ('domain', 'task', 'primitive', 'total', 'success', 'failed')]
-                      output.write('| ' + ' | '.join(values) + ' |\n')
-                  output.write('\nDownload the artifact for metrics, raw responses and the HTML report.\n')
+                  output.write('评测未生成报告，请检查安装、校验和推理步骤日志。\n')
           PY
       - name: Upload evaluation report and raw responses
         if: ${{ always() }}

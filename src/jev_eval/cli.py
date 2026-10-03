@@ -2,7 +2,6 @@
 
 import argparse
 import hashlib
-import html
 import json
 import os
 from datetime import UTC, datetime
@@ -11,21 +10,8 @@ from time import perf_counter
 
 from .backend import JevBackend, error_details, request_for
 from .metrics import answer_from, summarize
+from .reporting import write_reports
 from .schema import load_cases
-
-
-def write_reports(out: Path, summary: dict):
-    out.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(summary, ensure_ascii=False, indent=2, allow_nan=False)
-    (out / "summary.json").write_text(text, encoding="utf-8")
-    (out / "report.html").write_text(
-        '<!doctype html><html lang="zh"><meta charset="utf-8"><title>Jev 评测报告</title>'
-        "<style>body{max-width:1000px;margin:40px auto;font-family:system-ui}"
-        "pre{white-space:pre-wrap;background:#f4f5f7;padding:24px}</style>"
-        "<h1>Jev 评测报告</h1><p>质量指标仅计算成功样本，失败单独报告。"
-        "Mock 搜索数据不代表线上召回能力。</p><pre>" + html.escape(text) + "</pre></html>",
-        encoding="utf-8",
-    )
 
 
 def main():
@@ -51,7 +37,9 @@ def main():
         p.error("threshold must be between 0 and 1")
     if a.command == "report":
         rows = [json.loads(x) for x in a.results.read_text().splitlines() if x.strip()]
-        write_reports(a.out, summarize(rows, a.threshold))
+        manifest_path = a.results.parent / "manifest.json"
+        manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+        write_reports(a.out, summarize(rows, a.threshold, manifest))
         return
     cases = [
         c
@@ -98,6 +86,7 @@ def main():
         "retries": 0,
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    run_start = perf_counter()
     try:
         with (out / "results.jsonl").open("w", encoding="utf-8") as f:
             for case in cases:
@@ -125,7 +114,13 @@ def main():
                 )
     finally:
         backend.close()
-    write_reports(out, summarize(rows, a.threshold))
+        manifest.update(
+            ended_at=datetime.now(UTC).isoformat(),
+            elapsed_seconds=perf_counter() - run_start,
+            completed_cases=len(rows),
+        )
+        (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        write_reports(out, summarize(rows, a.threshold, manifest))
     print(f"Report: {out / 'report.html'}")
     if any(r["status"] != "ok" for r in rows):
         raise SystemExit(1)

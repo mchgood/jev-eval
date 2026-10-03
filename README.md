@@ -43,7 +43,7 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 - Score：期望分数 MAE、最大概率等级的二次加权 Kappa。
 - 分组排序：NDCG@5；不完整候选组不计算排序指标，全无关组标记并返回 null。
 - 原始响应、请求、延迟、token 用量、规范化数据 SHA256、模型配置落盘。
-- JSON 和 HTML 报告；异常样本保留，全部运行后以非零状态退出。
+- JSON、Markdown 和 HTML 报告；异常样本保留，全部运行后以非零状态退出。
 
 内置 **17 条人工编写的 smoke 样本**，覆盖两个领域的三种能力，含两个排序候选组和一个证据不足样本。
 这些样本仅用于流程验证，全部属于 dev，不能用于宣称模型准确率或线上能力。
@@ -55,7 +55,7 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 - `tests/`：数据校验、指标边界、SDK 请求隔离和 CLI 离线测试。
 - `docs/evaluation-plan.md`：正式数据集与后续实验。
 
-报告质量指标仅统计成功返回的样本，失败计数和总数单独展示，评估时必须同时查看。
+判断通过率：Choice 标签一致、Noul 按配置阈值判断、Score 最高概率等级一致。接口报错计入有标签样本的未通过，未知标签排除。其他质量指标仅统计成功返回样本。
 当前顺序调用、关闭 SDK 自动重试；P50/P95 为每条判断的客户端耗时，不是整个 Agent 的耗时。
 目前不调用其他 LLM，不输出虚构的基线成绩或价格估算。
 
@@ -72,7 +72,7 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
    `TYPESAFE_API_KEY`，值为 Jev API Key。不要使用普通变量或工作流输入存放密钥。
 2. 进入 **Actions → Jev evaluation → Run workflow**，选择 `main`。
 3. 选择数据集、模型、领域、能力和 Noul 阈值；默认运行 expanded 的 600 条样本，也可选择 17 条 smoke。
-4. 运行结束后在 Summary 查看成功/失败计数，在 Artifacts 下载 JSON、HTML 和原始响应。
+4. 运行结束后在 Summary 查看通过率、接口成功率、总耗时、平均/P50/P95 耗时和失败案例，在 Artifacts 下载 HTML、Markdown、JSON 和原始响应。
 
 工作流仅手动触发，不在普通 push 或 PR 中调用收费模型。缺少 Secret 时明确失败。
 模型参数经环境变量和带引号的参数传递，API Key 仅注入推理步骤。失败时仍上传已有结果，
@@ -98,3 +98,13 @@ GitHub Actions 默认使用 expanded，可切换 smoke；运行超时上限为 6
 默认固定模型版本为 `jev-1.13.0`。`jev-1.13` 是文档中的系列简称，API 不接受这个 ID。
 如果旧的手动运行参数仍为 `jev-1.13`，请在 Run workflow 中改成 `jev-1.13.0`。
 服务错误记录 HTTP 状态和脱敏消息，方便区分模型名错误、认证失败及限流。
+
+
+## 自动评测报告
+
+每次 `run` 自动生成 `report.html`（可直接打开）、`report.md`、`summary.json`、
+`failures.json`，并保存 `manifest.json` 和 `results.jsonl`。接口报错时也生成报告并保留非零退出码。
+报告按领域、任务、能力汇总判断通过率，展示候选组 NDCG@5 和未通过案例。
+总通过率是各类有标签样本的加权汇总，比较模型时应固定样本集及阈值。
+耗时包括失败请求；评测循环总耗时不包含依赖安装与报告渲染。
+`report` 命令读取原始结果旁的 manifest，可不调用模型重新生成报告；旧运行未记录的总耗时显示为 —。
