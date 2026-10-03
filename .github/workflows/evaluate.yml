@@ -4,6 +4,11 @@ run-name: Jev ${{ inputs.domain }} / ${{ inputs.primitive }} (${{ inputs.model }
 on:
   workflow_dispatch:
     inputs:
+      dataset:
+        description: Dataset size (expanded 600 cases; smoke 17 cases)
+        type: choice
+        options: [expanded, smoke]
+        default: expanded
       model:
         description: Jev model version available to your account
         type: string
@@ -35,17 +40,20 @@ concurrency:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Install locked dependencies
         run: uv sync --locked --python 3.12
       - name: Validate mock dataset
-        run: uv run jev-eval validate --data data/smoke.jsonl
+        run: |
+          uv run jev-eval validate --data data/smoke.jsonl
+          uv run jev-eval validate --data data/expanded
       - name: Run real Jev evaluation
         env:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          EVAL_DATASET: ${{ inputs.dataset }}
           EVAL_MODEL: ${{ inputs.model }}
           EVAL_DOMAIN: ${{ inputs.domain }}
           EVAL_PRIMITIVE: ${{ inputs.primitive }}
@@ -56,7 +64,12 @@ jobs:
             echo '::error::Add repository secret TYPESAFE_API_KEY before running evaluation.'
             exit 1
           fi
-          args=(--data data/smoke.jsonl --out results/evaluation --model "$EVAL_MODEL" --threshold "$EVAL_THRESHOLD" --timeout 30)
+          case "$EVAL_DATASET" in
+            expanded) data_path=data/expanded ;;
+            smoke) data_path=data/smoke.jsonl ;;
+            *) echo '::error::Unknown dataset'; exit 1 ;;
+          esac
+          args=(--data "$data_path" --out results/evaluation --model "$EVAL_MODEL" --threshold "$EVAL_THRESHOLD" --timeout 30)
           if [[ "$EVAL_DOMAIN" != all ]]; then args+=(--domain "$EVAL_DOMAIN"); fi
           if [[ "$EVAL_PRIMITIVE" != all ]]; then args+=(--primitive "$EVAL_PRIMITIVE"); fi
           uv run jev-eval run "${args[@]}"
@@ -71,7 +84,7 @@ jobs:
           summary = Path('results/evaluation/summary.json')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
               output.write('## Jev evaluation\n\nSearch data: mock. Inference: real Jev.\n\n')
-              output.write('The smoke dataset checks the pipeline; it is not a production benchmark.\n\n')
+              output.write('Synthetic development scenarios are not independent real-user samples or a production benchmark.\n\n')
               if not summary.exists():
                   output.write('No complete summary was generated. Check the evaluation step logs.\n')
               else:

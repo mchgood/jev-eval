@@ -45,12 +45,24 @@ class Case(BaseModel):
 
 def load_cases(path: Path) -> list[Case]:
     cases = []
+    paths = sorted(path.rglob("*.jsonl")) if path.is_dir() else [path]
+    for source in paths:
+        cases.extend(_load_file(source))
+    return _validate_dataset(cases)
+
+
+def _load_file(path: Path) -> list[Case]:
+    cases = []
     for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.strip():
             try:
                 cases.append(Case.model_validate(json.loads(line)))
             except Exception as exc:
                 raise ValueError(f"{path}:{line_no}: {exc}") from exc
+    return cases
+
+
+def _validate_dataset(cases: list[Case]) -> list[Case]:
     ids = [c.id for c in cases]
     if not cases or len(ids) != len(set(ids)):
         raise ValueError("Empty dataset or duplicate case IDs")

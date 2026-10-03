@@ -85,7 +85,12 @@ def main():
     rows = []
     manifest = {
         "model": a.model,
-        "dataset_sha256": hashlib.sha256(a.data.read_bytes()).hexdigest(),
+        "dataset_sha256": hashlib.sha256(
+            json.dumps(
+                [c.model_dump() for c in load_cases(a.data)], sort_keys=True, ensure_ascii=False
+            ).encode("utf-8")
+        ).hexdigest(),
+        "dataset_path": str(a.data),
         "threshold": a.threshold,
         "cases": [c.id for c in cases],
         "search_backend": "mock",

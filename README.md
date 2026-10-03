@@ -42,7 +42,7 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 - Noul：Precision、Recall、Brier、10 等宽区间 ECE；未知标签不进入二分类指标。
 - Score：期望分数 MAE、最大概率等级的二次加权 Kappa。
 - 分组排序：NDCG@5；不完整候选组不计算排序指标，全无关组标记并返回 null。
-- 原始响应、请求、延迟、token 用量、数据 SHA256、模型配置落盘。
+- 原始响应、请求、延迟、token 用量、规范化数据 SHA256、模型配置落盘。
 - JSON 和 HTML 报告；异常样本保留，全部运行后以非零状态退出。
 
 内置 **17 条人工编写的 smoke 样本**，覆盖两个领域的三种能力，含两个排序候选组和一个证据不足样本。
@@ -71,9 +71,25 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 1. 在仓库 **Settings → Secrets and variables → Actions → New repository secret** 中设置
    `TYPESAFE_API_KEY`，值为 Jev API Key。不要使用普通变量或工作流输入存放密钥。
 2. 进入 **Actions → Jev evaluation → Run workflow**，选择 `main`。
-3. 选择模型、领域、能力和 Noul 阈值；默认运行 17 条 smoke 样本，覆盖两领域三种能力。
+3. 选择数据集、模型、领域、能力和 Noul 阈值；默认运行 expanded 的 600 条样本，也可选择 17 条 smoke。
 4. 运行结束后在 Summary 查看成功/失败计数，在 Artifacts 下载 JSON、HTML 和原始响应。
 
 工作流仅手动触发，不在普通 push 或 PR 中调用收费模型。缺少 Secret 时明确失败。
 模型参数经环境变量和带引号的参数传递，API Key 仅注入推理步骤。失败时仍上传已有结果，
 报告保留 14 天。已有 Offline checks 工作流继续执行不需要 Key 的 CI。
+
+
+## 扩充样本：每个领域每种能力 100 条
+
+`data/expanded/` 包含音乐和导航的六个 JSONL 文件，共 600 条；每个领域各 100 条
+Choice、Noul、Score。CLI 的 `--data` 同时支持文件和目录，目录内 JSONL 按路径顺序加载。
+
+```bash
+uv run jev-eval validate --data data/expanded
+uv run jev-eval run --data data/expanded
+uv run jev-eval run --data data/expanded --domain navigation --primitive score
+```
+
+每个领域 25 个四候选排序组，包含 5 个全无关组。合成数据来源、标注规则和未知标签
+详见 [数据集说明](data/expanded/README.md)。当前全部为 dev，不作为独立冻结测试集。
+GitHub Actions 默认使用 expanded，可切换 smoke；运行超时上限为 60 分钟。
