@@ -12,5 +12,5 @@ jobs:
       - run: uv run ruff check .
       - run: uv run pytest
       - run: uv run jev-eval validate
-      - run: uv run jev-eval validate --data data/expanded
+      - run: uv run jev-eval validate --data data/evaluation.xlsx
       - run: uv run jev-eval dry-run --out results/requests.jsonl

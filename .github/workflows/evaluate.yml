@@ -48,8 +48,8 @@ jobs:
         run: uv sync --locked --python 3.12
       - name: Validate mock dataset
         run: |
-          uv run jev-eval validate --data data/smoke.jsonl
-          uv run jev-eval validate --data data/expanded
+          uv run jev-eval validate --data data/smoke.xlsx
+          uv run jev-eval validate --data data/evaluation.xlsx
       - name: Run real Jev evaluation
         env:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
@@ -65,8 +65,8 @@ jobs:
             exit 1
           fi
           case "$EVAL_DATASET" in
-            expanded) data_path=data/expanded ;;
-            smoke) data_path=data/smoke.jsonl ;;
+            expanded) data_path=data/evaluation.xlsx ;;
+            smoke) data_path=data/smoke.xlsx ;;
             *) echo '::error::Unknown dataset'; exit 1 ;;
           esac
           args=(--data "$data_path" --out results/evaluation --model "$EVAL_MODEL" --threshold "$EVAL_THRESHOLD" --timeout 30)

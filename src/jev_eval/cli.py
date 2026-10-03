@@ -19,7 +19,7 @@ def main():
     sub = p.add_subparsers(dest="command", required=True)
     for command in ("validate", "dry-run", "run"):
         s = sub.add_parser(command)
-        s.add_argument("--data", type=Path, default=Path("data/smoke.jsonl"))
+        s.add_argument("--data", type=Path, default=Path("data/smoke.xlsx"))
         s.add_argument("--domain", choices=["music", "navigation"])
         s.add_argument("--primitive", choices=["choice", "noul", "score"])
         s.add_argument("--split", choices=["dev", "calibration", "test"])

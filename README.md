@@ -38,7 +38,7 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 
 ## 当前实现
 
-- JSONL 数据校验，按领域 / 任务 / 能力 / split 筛选。
+- Excel 用例校验（兼容历史 JSONL），按领域 / 任务 / 能力 / split 筛选。
 - 官方 `typesafe-sdk` 适配器；请求中仅含 state 和 question，不传 gold / rationale。
 - Choice：准确率、Macro-F1（包含配置中的未出现类别）。
 - Noul：Precision、Recall、Brier、10 等宽区间 ECE；未知标签不进入二分类指标。
@@ -53,7 +53,8 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 ## 文件结构
 
 - `src/jev_eval/`：schema、SDK adapter、metrics、CLI。
-- `data/smoke.jsonl`：固定搜索候选和人工标签。
+- `data/smoke.xlsx`：17 条冒烟用例。
+- `data/evaluation.xlsx`：600 条完整用例、mock 输入字段和判断标准。
 - `tests/`：数据校验、指标边界、SDK 请求隔离和 CLI 离线测试。
 - `docs/evaluation-plan.md`：正式数据集与后续实验。
 
@@ -83,18 +84,19 @@ uv run jev-eval report --results results/run-001/results.jsonl --out results/rec
 
 ## 扩充样本：每个领域每种能力 100 条
 
-`data/expanded/` 包含音乐和导航的六个 JSONL 文件，共 600 条；每个领域各 100 条
-Choice、Noul、Score。CLI 的 `--data` 同时支持文件和目录，目录内 JSONL 按路径顺序加载。
+`data/evaluation.xlsx` 是日常维护入口，共 600 条，音乐和导航各 100 条 Choice、Noul、Score。
+无需编辑 JSON：在 Excel 中修改用例、输入字段、判断标准，保存后运行：
 
 ```bash
-uv run jev-eval validate --data data/expanded
-uv run jev-eval run --data data/expanded
-uv run jev-eval run --data data/expanded --domain navigation --primitive score
+uv run jev-eval validate --data data/evaluation.xlsx
+uv run jev-eval run --data data/evaluation.xlsx
+uv run jev-eval run --data data/evaluation.xlsx --domain navigation --primitive score
 ```
 
-每个领域 25 个四候选排序组，包含 5 个全无关组。合成数据来源、标注规则和未知标签
-详见 [数据集说明](data/expanded/README.md)。当前全部为 dev，不作为独立冻结测试集。
-GitHub Actions 默认使用 expanded，可切换 smoke；运行超时上限为 60 分钟。
+默认 CLI 使用 `data/smoke.xlsx`（17 条），Actions expanded 使用 `data/evaluation.xlsx`（600 条）。
+每个领域有 25 个四候选排序组，包含 5 个全无关组。当前全部为合成 dev，不作为独立冻结测试集。
+历史 JSONL 与生成脚本仅保留作迁移参照，不会随 Excel 修改自动同步。
+Excel 的字段格式及编辑方式见 [维护说明](docs/excel-dataset.md)。工作流超时上限为 60 分钟。
 
 
 默认固定模型版本为 `jev-1.13.0`。`jev-1.13` 是文档中的系列简称，API 不接受这个 ID。

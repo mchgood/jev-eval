@@ -12,7 +12,7 @@ ROOT = Path(__file__).parents[1]
 
 
 def test_each_domain_and_primitive_has_100_cases():
-    cases = load_cases(ROOT / "data/expanded")
+    cases = load_cases(ROOT / "data/evaluation.xlsx")
     counts = Counter((c.domain, c.question["type"]) for c in cases)
     assert len(cases) == 600
     assert counts == {
@@ -25,7 +25,7 @@ def test_each_domain_and_primitive_has_100_cases():
 
 def test_ranking_groups_are_complete_and_permuted():
     groups = defaultdict(list)
-    for c in load_cases(ROOT / "data/expanded"):
+    for c in load_cases(ROOT / "data/evaluation.xlsx"):
         if c.ranking_group:
             groups[(c.domain, c.ranking_group)].append(c)
     assert len(groups) == 50
@@ -44,7 +44,7 @@ def test_unknown_labels_and_binary_balance():
     for domain in ("music", "navigation"):
         cases = [
             c
-            for c in load_cases(ROOT / "data/expanded")
+            for c in load_cases(ROOT / "data/evaluation.xlsx")
             if c.domain == domain and c.question["type"] == "noul"
         ]
         counts = Counter(c.gold for c in cases)

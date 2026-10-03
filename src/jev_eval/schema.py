@@ -52,6 +52,10 @@ def load_cases(path: Path) -> list[Case]:
 
 
 def _load_file(path: Path) -> list[Case]:
+    if path.suffix.lower() == ".xlsx":
+        from .excel import load_excel
+
+        return load_excel(path)
     cases = []
     for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.strip():
